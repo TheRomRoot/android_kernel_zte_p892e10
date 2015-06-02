@@ -1,0 +1,1 @@
+cmd_drivers/input/misc/gpio_input.ko := /home/algesat/arm-eabi-4.7/bin/arm-eabi-ld -EL -r  -T /home/algesat/kernel/scripts/module-common.lds --build-id  -o drivers/input/misc/gpio_input.ko drivers/input/misc/gpio_input.o drivers/input/misc/gpio_input.mod.o

@@ -1,0 +1,1 @@
+cmd_drivers/char/rdbg.ko := /home/algesat/arm-eabi-4.7/bin/arm-eabi-ld -EL -r  -T /home/algesat/kernel/scripts/module-common.lds --build-id  -o drivers/char/rdbg.ko drivers/char/rdbg.o drivers/char/rdbg.mod.o

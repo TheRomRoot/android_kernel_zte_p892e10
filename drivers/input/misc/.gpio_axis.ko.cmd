@@ -1,0 +1,1 @@
+cmd_drivers/input/misc/gpio_axis.ko := /home/algesat/arm-eabi-4.7/bin/arm-eabi-ld -EL -r  -T /home/algesat/kernel/scripts/module-common.lds --build-id  -o drivers/input/misc/gpio_axis.ko drivers/input/misc/gpio_axis.o drivers/input/misc/gpio_axis.mod.o

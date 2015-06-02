@@ -1,0 +1,13 @@
+  CHK     include/linux/version.h
+  CHK     include/generated/utsrelease.h
+make[1]: «include/generated/mach-types.h» está actualizado.
+  CC      kernel/bounds.s
+  GEN     include/generated/bounds.h
+  CC      arch/arm/kernel/asm-offsets.s
+  GEN     include/generated/asm-offsets.h
+  CALL    scripts/checksyscalls.sh
+  CC      scripts/mod/empty.o
+as: opción no reconocida «-EL»
+make[2]: *** [scripts/mod/empty.o] Error 1
+make[1]: *** [scripts/mod] Error 2
+make: *** [scripts] Error 2

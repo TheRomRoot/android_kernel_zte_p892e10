@@ -1,0 +1,1 @@
+cmd_drivers/coresight/coresight-event.ko := /home/algesat/arm-eabi-4.7/bin/arm-eabi-ld -EL -r  -T /home/algesat/kernel/scripts/module-common.lds --build-id  -o drivers/coresight/coresight-event.ko drivers/coresight/coresight-event.o drivers/coresight/coresight-event.mod.o

@@ -1,0 +1,1 @@
+cmd_drivers/staging/built-in.o :=  /home/algesat/arm-eabi-4.7/bin/arm-eabi-ld -EL    -r -o drivers/staging/built-in.o drivers/staging/staging.o drivers/staging/serial/built-in.o drivers/staging/media/built-in.o drivers/staging/ste_rmi4/built-in.o drivers/staging/android/built-in.o drivers/staging/zte_ftm/built-in.o 

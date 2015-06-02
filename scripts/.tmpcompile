@@ -1,0 +1,6 @@
+/* This file is auto generated, version 0 */
+#define UTS_MACHINE ""
+#define UTS_VERSION "#0 Fri May 22 03:34:31 CEST 2015"
+#define LINUX_COMPILE_BY "algesat"
+#define LINUX_COMPILE_HOST "algesat-HackDroid"
+#define LINUX_COMPILER "./mkcompile_h: 1: ./mkcompile_h: -v: not found"

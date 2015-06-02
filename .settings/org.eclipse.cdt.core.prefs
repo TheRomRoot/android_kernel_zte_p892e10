@@ -1,0 +1,9 @@
+eclipse.preferences.version=1
+environment/project/com.android.toolchain.gcc.861426557/PATH/delimiter=\:
+environment/project/com.android.toolchain.gcc.861426557/PATH/operation=replace
+environment/project/com.android.toolchain.gcc.861426557/PATH/value=/home/algesat/bin\:/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/usr/games\:/usr/local/games\:/home/algesat/kernel
+environment/project/com.android.toolchain.gcc.861426557/PWD/delimiter=\:
+environment/project/com.android.toolchain.gcc.861426557/PWD/operation=replace
+environment/project/com.android.toolchain.gcc.861426557/PWD/value=/home/algesat/kernel/
+environment/project/com.android.toolchain.gcc.861426557/append=true
+environment/project/com.android.toolchain.gcc.861426557/appendContributed=true
