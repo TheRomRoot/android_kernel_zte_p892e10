@@ -16,7 +16,7 @@
 #include "msm_sd.h"
 #include "msm_actuator.h"
 #include "msm_cci.h"
-#include "../msm_sensor.h"
+
 DEFINE_MSM_MUTEX(msm_actuator_mutex);
 
 /*#define MSM_ACUTUATOR_DEBUG*/
@@ -27,11 +27,10 @@ DEFINE_MSM_MUTEX(msm_actuator_mutex);
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #endif
 
+extern int main_cam_eeprom_index;
+
 static struct msm_actuator msm_vcm_actuator_table;
 static struct msm_actuator msm_piezo_actuator_table;
-#if defined(CONFIG_OV8835)
-extern struct otp_struct current_ov8835_otp;
-#endif
 
 static struct i2c_driver msm_actuator_i2c_driver;
 static struct msm_actuator *actuators[] = {
@@ -135,40 +134,9 @@ static int32_t msm_actuator_init_focus(struct msm_actuator_ctrl_t *a_ctrl,
 {
 	int32_t rc = -EFAULT;
 	int32_t i = 0;
-#if defined(CONFIG_OV8835)
-	int32_t stp;
-	int32_t pointA;
-	int32_t PointB;
 	CDBG("Enter\n");
-	 if(current_ov8835_otp.VCM_start>450){
-			stp = (current_ov8835_otp.VCM_start-180)/(a_ctrl->region_params[0].step_bound[0] -
-		  a_ctrl->region_params[0].step_bound[1]);}
-		else if(current_ov8835_otp.VCM_start>380&&current_ov8835_otp.VCM_start<=450){
-			stp = (current_ov8835_otp.VCM_start-160)/(a_ctrl->region_params[0].step_bound[0] -
-		  a_ctrl->region_params[0].step_bound[1]);}
-		else if(current_ov8835_otp.VCM_start>340&&current_ov8835_otp.VCM_start<=380){
-			stp = (current_ov8835_otp.VCM_start-140)/(a_ctrl->region_params[0].step_bound[0] -
-		  a_ctrl->region_params[0].step_bound[1]);}
-		else if(current_ov8835_otp.VCM_start>300&&current_ov8835_otp.VCM_start<=340){
-			stp = (current_ov8835_otp.VCM_start-120)/(a_ctrl->region_params[0].step_bound[0] -
-		  a_ctrl->region_params[0].step_bound[1]);}
-		else if(current_ov8835_otp.VCM_start<=300){
-			stp = (current_ov8835_otp.VCM_start-100)/(a_ctrl->region_params[0].step_bound[0] -
-		  a_ctrl->region_params[0].step_bound[1]);}  
-			pointA = stp+10;
-			PointB = stp*2-2;
+
 	for (i = 0; i < size; i++) {
-			pr_err("%s reg_addr= %d,reg_data=%d \n", __func__,settings[i].reg_addr,settings[i].reg_data);
-			if(i==0){
-				settings[i].reg_data=pointA;
-				}
-			else if(i==1){
-				settings[i].reg_data=PointB;}
-			pr_err("%s after OTP reg_addr= %d,reg_data=%d \n", __func__,settings[i].reg_addr,settings[i].reg_data);
-	#else
-		CDBG("Enter\n");
-	for (i = 0; i < size; i++) {
-	#endif
 		switch (type) {
 		case MSM_ACTUATOR_BYTE_DATA:
 			rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
@@ -288,9 +256,6 @@ static int32_t msm_actuator_move_focus(
 	int32_t num_steps = move_params->num_steps;
 	struct msm_camera_i2c_reg_setting reg_setting;
 
-	curr_lens_pos = a_ctrl->step_position_table[a_ctrl->curr_step_pos];
-	move_params->curr_lens_pos = curr_lens_pos;
-
 	if (copy_from_user(&ringing_params_kernel,
 		&(move_params->ringing_params[a_ctrl->curr_region_index]),
 		sizeof(struct damping_params_t))) {
@@ -304,6 +269,23 @@ static int32_t msm_actuator_move_focus(
 	if (dest_step_pos == a_ctrl->curr_step_pos)
 		return rc;
 
+	if ((sign_dir > MSM_ACTUATOR_MOVE_SIGNED_NEAR) ||
+		(sign_dir < MSM_ACTUATOR_MOVE_SIGNED_FAR)) {
+		pr_err("%s:%d Invalid sign_dir = %d\n",
+		__func__, __LINE__, sign_dir);
+		return -EFAULT;
+	}
+	if ((dir > MOVE_FAR) || (dir < MOVE_NEAR)) {
+		pr_err("%s:%d Invalid direction = %d\n",
+		__func__, __LINE__, dir);
+		return -EFAULT;
+	}
+	if (dest_step_pos > a_ctrl->total_steps) {
+		pr_err("Step pos greater than total steps = %d\n",
+		dest_step_pos);
+		return -EFAULT;
+	}
+	curr_lens_pos = a_ctrl->step_position_table[a_ctrl->curr_step_pos];
 	a_ctrl->i2c_tbl_index = 0;
 	CDBG("curr_step_pos =%d dest_step_pos =%d curr_lens_pos=%d\n",
 		a_ctrl->curr_step_pos, dest_step_pos, curr_lens_pos);
@@ -341,7 +323,6 @@ static int32_t msm_actuator_move_focus(
 		a_ctrl->curr_step_pos = target_step_pos;
 	}
 
-	move_params->curr_lens_pos = curr_lens_pos;
 	reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 	reg_setting.data_type = a_ctrl->i2c_data_type;
 	reg_setting.size = a_ctrl->i2c_tbl_index;
@@ -374,6 +355,12 @@ static int32_t msm_actuator_init_step_table(struct msm_actuator_ctrl_t *a_ctrl,
 	kfree(a_ctrl->step_position_table);
 	a_ctrl->step_position_table = NULL;
 
+	if (set_info->af_tuning_params.total_steps
+		>  MAX_ACTUATOR_AF_TOTAL_STEPS) {
+		pr_err("%s: Max actuator totalsteps exceeded = %d\n",
+		__func__, set_info->af_tuning_params.total_steps);
+		return -EFAULT;
+	}
 	/* Fill step position table */
 	a_ctrl->step_position_table =
 		kmalloc(sizeof(uint16_t) *
@@ -502,12 +489,19 @@ static int32_t msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl,
 		pr_err("Actuator function table not found\n");
 		return rc;
 	}
-
-	a_ctrl->region_size = set_info->af_tuning_params.region_size;
-	if (a_ctrl->region_size > MAX_ACTUATOR_REGION) {
+	if (set_info->af_tuning_params.total_steps
+		>  MAX_ACTUATOR_AF_TOTAL_STEPS) {
+		pr_err("%s: Max actuator totalsteps exceeded = %d\n",
+		__func__, set_info->af_tuning_params.total_steps);
+		return -EFAULT;
+	}
+	if (set_info->af_tuning_params.region_size
+		> MAX_ACTUATOR_REGION) {
 		pr_err("MAX_ACTUATOR_REGION is exceeded.\n");
 		return -EFAULT;
 	}
+
+	a_ctrl->region_size = set_info->af_tuning_params.region_size;
 	a_ctrl->pwd_step = set_info->af_tuning_params.pwd_step;
 	a_ctrl->total_steps = set_info->af_tuning_params.total_steps;
 
@@ -557,7 +551,9 @@ static int32_t msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl,
 		return -EFAULT;
 	}
 
-	if (set_info->actuator_params.init_setting_size) {
+	if (set_info->actuator_params.init_setting_size &&
+		set_info->actuator_params.init_setting_size
+		<= MAX_ACTUATOR_REG_TBL_SIZE) {
 		if (a_ctrl->func_tbl->actuator_init_focus) {
 			init_settings = kmalloc(sizeof(struct reg_settings_t) *
 				(set_info->actuator_params.init_setting_size),
@@ -663,6 +659,14 @@ static int32_t msm_actuator_get_subdev_id(struct msm_actuator_ctrl_t *a_ctrl,
 		*subdev_id = a_ctrl->pdev->id;
 	else
 		*subdev_id = a_ctrl->subdev_id;
+		
+	if (2 == main_cam_eeprom_index) {
+		*subdev_id = 4;
+		a_ctrl->cam_name = 4;
+	} else if (3 == main_cam_eeprom_index) {
+		*subdev_id = 2;
+		a_ctrl->cam_name = 2;
+	}
 
 	CDBG("subdev_id %d\n", *subdev_id);
 	CDBG("Exit\n");
@@ -895,6 +899,7 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
 		&pdev->id);
 	CDBG("cell-index %d, rc %d\n", pdev->id, rc);
 	if (rc < 0) {
+		kfree(msm_actuator_t);
 		pr_err("failed rc %d\n", rc);
 		return rc;
 	}
@@ -903,6 +908,7 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
 		&msm_actuator_t->cci_master);
 	CDBG("qcom,cci-master %d, rc %d\n", msm_actuator_t->cci_master, rc);
 	if (rc < 0) {
+		kfree(msm_actuator_t);
 		pr_err("failed rc %d\n", rc);
 		return rc;
 	}
@@ -919,6 +925,7 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
 	msm_actuator_t->i2c_client.cci_client = kzalloc(sizeof(
 		struct msm_camera_cci_client), GFP_KERNEL);
 	if (!msm_actuator_t->i2c_client.cci_client) {
+		kfree(msm_actuator_t);
 		pr_err("failed no memory\n");
 		return -ENOMEM;
 	}

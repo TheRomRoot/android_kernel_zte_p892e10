@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (C) 2014 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,32 +11,16 @@
  *
  */
 #include "msm_sensor.h"
+
 #define OV9760_SENSOR_NAME "ov9760"
 DEFINE_MSM_MUTEX(ov9760_mut);
-#undef CDBG
-#ifdef CONFIG_MSMB_CAMERA_DEBUG
-#define CDBG(fmt, args...) pr_err(fmt, ##args)
-#else
-#define CDBG(fmt, args...) do { } while (0)
-#endif
+
 static struct msm_sensor_ctrl_t ov9760_s_ctrl;
 
 static struct msm_sensor_power_setting ov9760_power_setting[] = {
 	{
-		.seq_type = SENSOR_GPIO,
-		.seq_val = SENSOR_GPIO_STANDBY,
-		.config_val = GPIO_OUT_LOW,
-		.delay = 10,
-	},
-	{
-		.seq_type = SENSOR_GPIO,
-		.seq_val = SENSOR_GPIO_RESET,
-		.config_val = GPIO_OUT_HIGH,
-		.delay = 10,
-	},
-	{
 		.seq_type = SENSOR_VREG,
-		.seq_val = CAM_VDIG,
+		.seq_val = CAM_VANA,
 		.config_val = 0,
 		.delay = 0,
 	},
@@ -47,10 +31,28 @@ static struct msm_sensor_power_setting ov9760_power_setting[] = {
 		.delay = 0,
 	},
 	{
-		.seq_type = SENSOR_GPIO,
-		.seq_val = SENSOR_GPIO_VANA,
-		.config_val = GPIO_OUT_HIGH,
+		.seq_type = SENSOR_VREG,
+		.seq_val = CAM_VDIG,
+		.config_val = 0,
 		.delay = 0,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_RESET,
+		.config_val = GPIO_OUT_LOW,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_RESET,
+		.config_val = GPIO_OUT_HIGH,
+		.delay = 5,
+	},
+	{
+		.seq_type = SENSOR_GPIO,
+		.seq_val = SENSOR_GPIO_STANDBY,
+		.config_val = GPIO_OUT_LOW,
+		.delay = 5,
 	},
 	{
 		.seq_type = SENSOR_GPIO,
@@ -81,16 +83,16 @@ static struct v4l2_subdev_info ov9760_subdev_info[] = {
 	},
 };
 
-static const struct i2c_device_id ov9760_i2c_id[] = {
-	{OV9760_SENSOR_NAME, (kernel_ulong_t)&ov9760_s_ctrl},
-	{ }
-};
-
 static int32_t msm_ov9760_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	return msm_sensor_i2c_probe(client, id, &ov9760_s_ctrl);
 }
+
+static const struct i2c_device_id ov9760_i2c_id[] = {
+	{OV9760_SENSOR_NAME, (kernel_ulong_t)&ov9760_s_ctrl},
+	{ }
+};
 
 static struct i2c_driver ov9760_i2c_driver = {
 	.id_table = ov9760_i2c_id,
@@ -102,6 +104,15 @@ static struct i2c_driver ov9760_i2c_driver = {
 
 static struct msm_camera_i2c_client ov9760_sensor_i2c_client = {
 	.addr_type = MSM_CAMERA_I2C_WORD_ADDR,
+};
+
+static struct msm_sensor_ctrl_t ov9760_s_ctrl = {
+	.sensor_i2c_client = &ov9760_sensor_i2c_client,
+	.power_setting_array.power_setting = ov9760_power_setting,
+	.power_setting_array.size = ARRAY_SIZE(ov9760_power_setting),
+	.msm_sensor_mutex = &ov9760_mut,
+	.sensor_v4l2_subdev_info = ov9760_subdev_info,
+	.sensor_v4l2_subdev_info_size = ARRAY_SIZE(ov9760_subdev_info),
 };
 
 static const struct of_device_id ov9760_dt_match[] = {
@@ -123,6 +134,7 @@ static int32_t ov9760_platform_probe(struct platform_device *pdev)
 {
 	int32_t rc = 0;
 	const struct of_device_id *match;
+
 	match = of_match_device(ov9760_dt_match, &pdev->dev);
 	rc = msm_sensor_platform_probe(pdev, match->data);
 	return rc;
@@ -131,18 +143,18 @@ static int32_t ov9760_platform_probe(struct platform_device *pdev)
 static int __init ov9760_init_module(void)
 {
 	int32_t rc = 0;
-	pr_err("%s:%d\n", __func__, __LINE__);
+
+	pr_info("%s:%d\n", __func__, __LINE__);
+
 	rc = platform_driver_probe(&ov9760_platform_driver,
 		ov9760_platform_probe);
 	if (!rc)
 		return rc;
-	pr_err("%s:%d rc %d\n", __func__, __LINE__, rc);
 	return i2c_add_driver(&ov9760_i2c_driver);
 }
 
 static void __exit ov9760_exit_module(void)
 {
-	pr_err("%s:%d\n", __func__, __LINE__);
 	if (ov9760_s_ctrl.pdev) {
 		msm_sensor_free_sensor_data(&ov9760_s_ctrl);
 		platform_driver_unregister(&ov9760_platform_driver);
@@ -150,23 +162,8 @@ static void __exit ov9760_exit_module(void)
 		i2c_del_driver(&ov9760_i2c_driver);
 	return;
 }
-static struct msm_sensor_fn_t front_sensor_func_tbl = {
-	.sensor_config = msm_sensor_config,
-	.sensor_power_up = front_sensor_power_up,
-	.sensor_power_down = front_sensor_power_down,
-	.sensor_match_id = msm_sensor_match_id,
-};
-static struct msm_sensor_ctrl_t ov9760_s_ctrl = {
-	.sensor_i2c_client = &ov9760_sensor_i2c_client,
-	.power_setting_array.power_setting = ov9760_power_setting,
-	.power_setting_array.size = ARRAY_SIZE(ov9760_power_setting),
-	.msm_sensor_mutex = &ov9760_mut,
-	.sensor_v4l2_subdev_info = ov9760_subdev_info,
-	.sensor_v4l2_subdev_info_size = ARRAY_SIZE(ov9760_subdev_info),
-	.func_tbl = &front_sensor_func_tbl,
-};
 
-module_init(ov9760_init_module);
+late_initcall(ov9760_init_module);
 module_exit(ov9760_exit_module);
 MODULE_DESCRIPTION("ov9760");
 MODULE_LICENSE("GPL v2");

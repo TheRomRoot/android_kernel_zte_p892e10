@@ -40,9 +40,13 @@
 #define MAX_ACTUATOR_REGION 5
 #define MAX_ACTUATOR_INIT_SET 12
 #define MAX_ACTUATOR_REG_TBL_SIZE 8
+#define MAX_ACTUATOR_AF_TOTAL_STEPS 1024
 
 #define MOVE_NEAR 0
 #define MOVE_FAR  1
+
+#define MSM_ACTUATOR_MOVE_SIGNED_FAR -1
+#define MSM_ACTUATOR_MOVE_SIGNED_NEAR  1
 
 #define MAX_EEPROM_NAME 32
 
@@ -434,7 +438,6 @@ enum msm_sensor_cfg_type_t {
 	CFG_SET_EFFECT,
 	CFG_SET_WHITE_BALANCE,
 	CFG_SET_AUTOFOCUS,
-        CFG_SET_OTP_SETTING,
 	CFG_CANCEL_AUTOFOCUS,
 };
 
@@ -485,7 +488,6 @@ struct msm_actuator_move_params_t {
 	int8_t sign_dir;
 	int16_t dest_step_pos;
 	int32_t num_steps;
-	uint16_t curr_lens_pos;
 	struct damping_params_t *ringing_params;
 };
 
@@ -536,6 +538,7 @@ enum af_camera_name {
 	ACTUATOR_MAIN_CAM_3,
 	ACTUATOR_MAIN_CAM_4,
 	ACTUATOR_MAIN_CAM_5,
+	ACTUATOR_MAIN_CAM_6,
 	ACTUATOR_WEB_CAM_0,
 	ACTUATOR_WEB_CAM_1,
 	ACTUATOR_WEB_CAM_2,
@@ -583,8 +586,7 @@ enum msm_camera_led_config_t {
 
 struct msm_camera_led_cfg_t {
 	enum msm_camera_led_config_t cfgtype;
-	uint32_t torch_current;
-	uint32_t flash_current[2];
+	uint32_t led_current;
 };
 
 #define VIDIOC_MSM_SENSOR_CFG \

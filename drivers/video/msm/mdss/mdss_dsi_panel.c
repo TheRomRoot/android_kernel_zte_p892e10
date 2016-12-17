@@ -486,7 +486,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	}
 
     // add by guohaijing 2014.05.21 start
-    // 在bl_level为0或从0变为非0的时候打印log
+    // \D4\DAbl_level为0\BB\F2\B4\D30\B1\E4为\B7\C70\B5\C4时\BA\F2\B4\F2印log
     if (bl_level_last == 0 || bl_level == 0)
     {
         printk("mdss_dsi_panel_bl_ctrl, bl_level=%d\n",bl_level);
@@ -1162,6 +1162,9 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	}
 	for (i = 0; i < len; i++)
 		pinfo->mipi.dsi_phy_db.timing[i] = data[i];
+
+	pinfo->mipi.force_clk_lane_hs = of_property_read_bool(np,
+					"qcom,mdss-dsi-force-clk-lane-hs");
 
 	pinfo->mipi.lp11_init = of_property_read_bool(np,
 					"qcom,mdss-dsi-lp11-init");
