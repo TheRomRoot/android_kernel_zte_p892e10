@@ -331,6 +331,17 @@ static struct msm_vidc_ctrl msm_vdec_ctrls[] = {
 		.step = 1,
 		.cluster = 0,
 	},
+	{
+		.id = V4L2_CID_MPEG_VIDC_VIDEO_BUFFER_SIZE_LIMIT,
+		.name = "Buffer size limit",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 0x7fffffff,
+		.default_value = 0,
+		.step = 1,
+		.menu_skip_mask = 0,
+		.qmenu = NULL,
+	},
 };
 
 #define NUM_CTRLS ARRAY_SIZE(msm_vdec_ctrls)
@@ -345,6 +356,36 @@ static u32 get_frame_size_compressed(int plane,
 					u32 max_mbs_per_frame, u32 size_per_mb)
 {
 	return (max_mbs_per_frame * size_per_mb * 3/2)/2;
+}
+
+static u32 get_frame_size(struct msm_vidc_inst *inst,
+					const struct msm_vidc_format *fmt,
+					int fmt_type, int plane)
+{
+	u32 frame_size = 0;
+	if (fmt_type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		frame_size = fmt->get_frame_size(plane,
+					inst->capability.mbs_per_frame.max,
+					MB_SIZE_IN_PIXEL);
+		if (inst->capability.buffer_size_limit &&
+			(inst->capability.buffer_size_limit < frame_size)) {
+			frame_size = inst->capability.buffer_size_limit;
+			dprintk(VIDC_DBG, "input buffer size limited to %d\n",
+				frame_size);
+		} else {
+			dprintk(VIDC_DBG, "set input buffer size to %d\n",
+				frame_size);
+		}
+	} else if (fmt_type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		frame_size = fmt->get_frame_size(plane,
+					inst->capability.height.max,
+					inst->capability.width.max);
+		dprintk(VIDC_DBG, "set output buffer size to %d\n",
+			frame_size);
+	} else {
+		dprintk(VIDC_WARN, "Wrong format type\n");
+	}
+	return frame_size;
 }
 
 struct msm_vidc_format vdec_formats[] = {
@@ -747,10 +788,8 @@ int msm_vdec_g_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 			for (i = 0; i < fmt->num_planes; ++i) {
 				if (plane_sizes[i] == 0) {
 					f->fmt.pix_mp.plane_fmt[i].sizeimage =
-						fmt->get_frame_size(i,
-						inst->capability.
-						mbs_per_frame.max,
-						MB_SIZE_IN_PIXEL);
+						get_frame_size(inst, fmt,
+								f->type, i);
 					plane_sizes[i] =
 						f->fmt.pix_mp.plane_fmt[i].
 							sizeimage;
@@ -918,6 +957,7 @@ int msm_vdec_s_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 			for (i = 0; i < fmt->num_planes; ++i) {
 				f->fmt.pix_mp.plane_fmt[i].sizeimage =
 					fmt->get_frame_size(i,
+					get_frame_size(inst, fmt, f->type, i);
 			inst->capability.mbs_per_frame.max, MB_SIZE_IN_PIXEL);
 			}
 		} else {
@@ -1103,9 +1143,8 @@ static int msm_vdec_queue_setup(struct vb2_queue *q,
 				*num_buffers > MAX_NUM_OUTPUT_BUFFERS)
 			*num_buffers = MIN_NUM_OUTPUT_BUFFERS;
 		for (i = 0; i < *num_planes; i++) {
-			sizes[i] = inst->fmts[OUTPUT_PORT]->get_frame_size(
-					i, inst->capability.mbs_per_frame.max,
-					MB_SIZE_IN_PIXEL);
+			sizes[i] = get_frame_size(inst,
+					inst->fmts[OUTPUT_PORT], q->type, i);
 		}
 		property_id = HAL_PARAM_BUFFER_COUNT_ACTUAL;
 		new_buf_count.buffer_type = HAL_BUFFER_INPUT;
@@ -1750,6 +1789,13 @@ static int try_set_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 		property_val = ctrl->val;
 		pdata = &property_val;
 		break;
+	case V4L2_CID_MPEG_VIDC_VIDEO_BUFFER_SIZE_LIMIT:
+	{
+		inst->capability.buffer_size_limit = ctrl->val;
+		dprintk(VIDC_DBG,
+			"Limiting input buffer size to :%u\n", ctrl->val);
+		break;
+	}
 	default:
 		break;
 	}
